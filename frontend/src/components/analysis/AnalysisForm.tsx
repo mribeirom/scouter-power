@@ -1,16 +1,74 @@
+import { useState } from "react";
 import { Input } from "../ui/Input";
 import { Label } from "../ui/Label";
 import { Button } from "../ui/Button";
+import { AnalysisResult } from "./AnalysisResult";
 
 export function AnalysisForm() {
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [result, setResult] = useState<null | {
+    powerLevel: number;
+    classification: string;
+    details: {
+      levantamento: string;
+      carga: number;
+      repeticao: number;
+    };
+  }>(null);
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    
+    const levantamento = formData.get("levantamento") as string;
+    const carga = Number(formData.get("carga"));
+    const repeticao = Number(formData.get("repeticao"));
+    
+    // Simple mock calculation for demonstration
+    const powerLevel = Math.round(carga * (1 + repeticao / 30) * 85);
+    
+    let classification = "Iniciante";
+    if (powerLevel > 4000) classification = "Intermediário";
+    if (powerLevel > 8000) classification = "Avançado";
+    if (powerLevel > 12000) classification = "Elite";
+
+    setIsCalculating(true);
+
+    setTimeout(() => {
+      setResult({
+        powerLevel,
+        classification,
+        details: { levantamento, carga, repeticao }
+      });
+      setIsCalculating(false);
+    }, 800);
+  };
+
+  if (result) {
+    return (
+      <AnalysisResult
+        powerLevel={result.powerLevel}
+        classification={result.classification}
+        details={result.details}
+        onReset={() => setResult(null)}
+      />
+    );
+  }
+
   return (
-    <section id="analysis" className="py-24 px-6 max-w-4xl mx-auto">
-      <div className="bg-card border border-border p-1 relative overflow-hidden">
+    <section id="analysis" className="py-24 px-6 max-w-5xl mx-auto animate-in fade-in zoom-in duration-500">
+      <div 
+        className={`bg-card p-1 relative overflow-hidden transition-all duration-500 ease-in-out border min-h-[650px] flex flex-col justify-center ${
+          isCalculating 
+            ? "scale-[1.03] border-primary border-4 shadow-[0_0_40px_rgba(var(--primary),0.6)]" 
+            : "border-border"
+        }`}
+      >
         {/* Scouter corner accents */}
-        <div className="absolute top-0 left-0 w-8 h-8 border-l-2 border-t-2 border-accent"></div>
-        <div className="absolute top-0 right-0 w-8 h-8 border-r-2 border-t-2 border-accent"></div>
-        <div className="absolute bottom-0 left-0 w-8 h-8 border-l-2 border-b-2 border-accent"></div>
-        <div className="absolute bottom-0 right-0 w-8 h-8 border-r-2 border-b-2 border-accent"></div>
+        <div className={`absolute top-0 left-0 w-8 h-8 border-l-2 border-t-2 transition-colors duration-500 ${isCalculating ? 'border-primary' : 'border-accent'}`}></div>
+        <div className={`absolute top-0 right-0 w-8 h-8 border-r-2 border-t-2 transition-colors duration-500 ${isCalculating ? 'border-primary' : 'border-accent'}`}></div>
+        <div className={`absolute bottom-0 left-0 w-8 h-8 border-l-2 border-b-2 transition-colors duration-500 ${isCalculating ? 'border-primary' : 'border-accent'}`}></div>
+        <div className={`absolute bottom-0 right-0 w-8 h-8 border-r-2 border-b-2 transition-colors duration-500 ${isCalculating ? 'border-primary' : 'border-accent'}`}></div>
 
         <div className="p-8 md:p-12">
           <div className="mb-10 text-center">
@@ -27,7 +85,7 @@ export function AnalysisForm() {
             </p>
           </div>
 
-          <form className="space-y-6">
+          <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="levantamento">Levantamento</Label>
@@ -115,8 +173,6 @@ export function AnalysisForm() {
               Calcular
             </Button>
           </form>
-
-
         </div>
       </div>
     </section>
