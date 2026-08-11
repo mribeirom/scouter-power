@@ -3,7 +3,7 @@ from pydantic import field_validator
 from typing import List, Any
 
 class Settings(BaseSettings):
-    cors_origins: List[str] = ["http://localhost:5173", "http://localhost:3000"]
+    cors_origins: List[str] = ["*"]
     model_path: str = "../data/knn_model.joblib"
     
     @field_validator("cors_origins", mode="before")
