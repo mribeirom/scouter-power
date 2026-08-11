@@ -1,11 +1,16 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Input } from "../ui/Input";
 import { Label } from "../ui/Label";
 import { Button } from "../ui/Button";
 import { AnalysisResult } from "./AnalysisResult";
+import { analyzeStrength } from "../../lib/api";
+import { strengthAnalysisSchema, type StrengthAnalysisFormData, EXERCISES, GENDERS } from "../../lib/schema";
 
 export function AnalysisForm() {
-  const [isCalculating, setIsCalculating] = useState(false);
   const [result, setResult] = useState<null | {
     powerLevel: number;
     classification: string;
@@ -16,33 +21,46 @@ export function AnalysisForm() {
     };
   }>(null);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    
-    const levantamento = formData.get("levantamento") as string;
-    const carga = Number(formData.get("carga"));
-    const repeticao = Number(formData.get("repeticao"));
-    
-    // Simple mock calculation for demonstration
-    const powerLevel = Math.round(carga * (1 + repeticao / 30) * 85);
-    
-    let classification = "Iniciante";
-    if (powerLevel > 4000) classification = "Intermediário";
-    if (powerLevel > 8000) classification = "Avançado";
-    if (powerLevel > 12000) classification = "Elite";
+  const { register, handleSubmit, formState: { errors } } = useForm<StrengthAnalysisFormData>({
+    resolver: zodResolver(strengthAnalysisSchema),
+    defaultValues: {
+      levantamento: "supino",
+      genero: "masculino",
+    }
+  });
 
-    setIsCalculating(true);
-
-    setTimeout(() => {
+  const analyzeMutation = useMutation({
+    mutationFn: analyzeStrength,
+    onSuccess: (data, variables) => {
       setResult({
-        powerLevel,
-        classification,
-        details: { levantamento, carga, repeticao }
+        powerLevel: data.rm1_estimado_kg,
+        classification: data.classificacao,
+        details: { 
+          levantamento: variables.exercicio, 
+          carga: variables.peso_exercicio, 
+          repeticao: variables.repeticoes 
+        }
       });
-      setIsCalculating(false);
-    }, 800);
+      toast.success("Análise concluída com sucesso!");
+    },
+    onError: (error) => {
+      console.error("Erro ao analisar força:", error);
+      toast.error(error instanceof Error ? error.message : "Ocorreu um erro ao conectar com o servidor.");
+    }
+  });
+
+  const onSubmit = (data: StrengthAnalysisFormData) => {
+    analyzeMutation.mutate({
+      exercicio: data.levantamento,
+      genero: data.genero,
+      idade: data.idade,
+      peso_corporal: data.peso,
+      peso_exercicio: data.carga,
+      repeticoes: data.repeticao
+    });
   };
+
+  const isCalculating = analyzeMutation.isPending;
 
   if (result) {
     return (
@@ -85,92 +103,85 @@ export function AnalysisForm() {
             </p>
           </div>
 
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="levantamento">Levantamento</Label>
                 <select
                   id="levantamento"
-                  name="levantamento"
-                  required
-                  className="flex w-full bg-background border border-border px-4 py-3 font-mono text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+                  {...register("levantamento")}
+                  className="flex w-full bg-background border border-border px-4 py-3 font-mono text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors capitalize"
                 >
-                  <option value="supino">Supino</option>
-                  <option value="agachamento">Agachamento</option>
-                  <option value="levantamento terra">Levantamento Terra</option>
+                  {EXERCISES.map(ex => (
+                    <option key={ex} value={ex}>{ex}</option>
+                  ))}
                 </select>
+                {errors.levantamento && <span className="text-destructive text-xs">{errors.levantamento.message}</span>}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="genero">Gênero</Label>
                 <select
                   id="genero"
-                  name="genero"
-                  required
-                  className="flex w-full bg-background border border-border px-4 py-3 font-mono text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+                  {...register("genero")}
+                  className="flex w-full bg-background border border-border px-4 py-3 font-mono text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors capitalize"
                 >
-                  <option value="masculino">Masculino</option>
-                  <option value="feminino">Feminino</option>
+                  {GENDERS.map(g => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
                 </select>
+                {errors.genero && <span className="text-destructive text-xs">{errors.genero.message}</span>}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="carga">Carga (kg)</Label>
                 <Input
                   id="carga"
-                  name="carga"
                   type="number"
-                  min={0}
-                  max={500}
                   step="0.5"
-                  required
                   placeholder="100"
+                  {...register("carga", { valueAsNumber: true })}
                 />
+                {errors.carga && <span className="text-destructive text-xs">{errors.carga.message}</span>}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="idade">Idade</Label>
                 <Input
                   id="idade"
-                  name="idade"
                   type="number"
-                  min={10}
-                  max={120}
-                  required
                   placeholder="25"
+                  {...register("idade", { valueAsNumber: true })}
                 />
+                {errors.idade && <span className="text-destructive text-xs">{errors.idade.message}</span>}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="repeticao">Repetição</Label>
                 <Input
                   id="repeticao"
-                  name="repeticao"
                   type="number"
-                  min={1}
-                  max={100}
-                  required
                   placeholder="5"
+                  {...register("repeticao", { valueAsNumber: true })}
                 />
+                {errors.repeticao && <span className="text-destructive text-xs">{errors.repeticao.message}</span>}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="peso">Peso (kg)</Label>
                 <Input
                   id="peso"
-                  name="peso"
                   type="number"
-                  min={20}
-                  max={300}
                   step="0.1"
-                  required
                   placeholder="70"
+                  {...register("peso", { valueAsNumber: true })}
                 />
+                {errors.peso && <span className="text-destructive text-xs">{errors.peso.message}</span>}
               </div>
             </div>
 
-            <Button type="submit" className="w-full md:w-auto px-12 py-4 text-xl">
-              Calcular
+            <Button type="submit" className="w-full md:w-auto px-12 py-4 text-xl" disabled={isCalculating}>
+              {isCalculating ? "Calculando..." : "Calcular"}
             </Button>
           </form>
         </div>
