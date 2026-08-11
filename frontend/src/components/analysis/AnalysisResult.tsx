@@ -80,7 +80,7 @@ export function AnalysisResult({
                 <p className="font-display text-lg md:text-xl uppercase tracking-wide text-foreground/80 leading-tight">
                   Estimamos que seu máximo para 1 repetição seja
                   <span className="block mt-2 text-5xl md:text-7xl text-primary drop-shadow-[0_0_15px_rgba(var(--primary),0.5)] tracking-tighter">
-                    20 <span className="text-2xl md:text-4xl text-primary/70">KG</span>
+                    {powerLevel} <span className="text-2xl md:text-4xl text-primary/70">KG</span>
                   </span>
                 </p>
               </div>
